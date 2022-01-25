@@ -1,0 +1,1 @@
+This mod adds highly-configurable Particulator, a block that creates particles for decoration. Inspired by Particulator from Primitive Survival mod for Vintage Story.
