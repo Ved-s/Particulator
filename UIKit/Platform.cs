@@ -69,7 +69,7 @@ namespace UIKit
                 EventInfo eventInfo = textInputExt.GetEvent("TextInput", BindingFlags.Public | BindingFlags.Static);
                 eventInfo.AddEventHandler(null, new Action<char>((c) =>
                 {
-                    TextInput(Keys.None, c);
+                    TextInput?.Invoke(Keys.None, c);
                 }));
 
             }
