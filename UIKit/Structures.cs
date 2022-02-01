@@ -295,6 +295,7 @@ namespace UIKit
 
         public void DrawText(IFont font, string text, Vec2f pos, Angle angle, Color color, Color? shade = null)
         {
+            if (text is null) return;
             pos = pos.ApplyTransform(Transform) + new Vec2f(0, 4); 
             float rad = (angle + Transform.Angle).Radians;
 
@@ -314,12 +315,14 @@ namespace UIKit
         }
         public void DrawText(IFont font, string text, Rect rect, Align align, Color color, Color? shade = null)
         {
+            if (text is null) return;
             Vec2f pos = rect.Position;
             pos += align.CalculateAlign(rect.Size, font.MeasureString(text));
             DrawText(font, text, pos, Angle.Zero, color, shade);
         }
         public void DrawText(IFont font, StringBuilder text, Vec2f pos, Angle angle, Color color, Color? shade = null)
         {
+            if (text is null) return;
             pos = pos.ApplyTransform(Transform) + font.DrawOffset;
             float rad = (angle + Transform.Angle).Radians;
 
@@ -339,6 +342,7 @@ namespace UIKit
         }
         public void DrawText(IFont font, StringBuilder text, Rect rect, Align align, Color color, Color? shade = null)
         {
+            if (text is null) return;
             Vec2f pos = rect.Position;
             pos += align.CalculateAlign(rect.Size, font.MeasureString(text));
             DrawText(font, text, pos, Angle.Zero, color, shade);

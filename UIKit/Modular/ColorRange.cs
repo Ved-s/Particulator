@@ -62,7 +62,7 @@ namespace UIKit.Modular
 
         public ColorRange()
         {
-            Regex regex = new Regex("^[0-9]{0,3}$");
+            Regex regex = new Regex("^[0-9]*$");
 
             Size = new PercentPos(160, 160);
             Elements = new ElementCollection(this)
@@ -204,10 +204,12 @@ namespace UIKit.Modular
             };
 
             Header = GetLocalElement<UILabel>("header");
+			
             RMin = GetLocalElement<UIInput>("minr");
             GMin = GetLocalElement<UIInput>("ming");
             BMin = GetLocalElement<UIInput>("minb");
             AMin = GetLocalElement<UIInput>("mina");
+			
             RMax = GetLocalElement<UIInput>("maxr");
             GMax = GetLocalElement<UIInput>("maxg");
             BMax = GetLocalElement<UIInput>("maxb");

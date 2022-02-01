@@ -52,8 +52,15 @@ namespace UIKit.UI
             Stopwatch sw = Stopwatch.StartNew();
             Draw(GetGraphics(spriteBatch));
 
+            TransformedGraphics graphics = new TransformedGraphics(spriteBatch, new Transform() { Scale = 1f });
+
+            if (Hover?.HoverText != null)
+            {
+                 graphics.DrawText(Font, Hover.HoverText, MousePosition + new Vec2f(20, 0), Angle.Zero, Color.White, Color.Black);
+            }
+
             if (Debug && Hover != null)
-                DrawDebug(Hover, new TransformedGraphics(spriteBatch, new Transform() { Scale = 1f }));
+                DrawDebug(Hover, graphics);
 
             sw.Stop();
             DrawTime = sw.Elapsed;
@@ -80,6 +87,9 @@ namespace UIKit.UI
                 data += "\n+ " + ext.ShortId + (ext.Global? " (G)" : "");
 
             Vec2f pos = MousePosition + new Vec2f(20, 0);
+
+            if (Hover?.HoverText != null) pos.Y += Font.MeasureString(Hover?.HoverText).Y;
+
             graphics.DrawText(Font, data, pos, Angle.Zero, Color.Red, Color.Black);
 
             if (element is UIContainer container)
@@ -108,7 +118,7 @@ namespace UIKit.UI
         public override void KeyUpdate(Keys key, EventType type)
         {
             base.KeyUpdate(key, type);
-            if (type == EventType.Presssed && key == Keys.F9)
+            if (type == EventType.Presssed && key == Keys.D && CurrentKeys.Shift() && CurrentKeys.Ctrl())
                 Debug = !Debug && DebugEnabled;
         }
 

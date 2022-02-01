@@ -47,6 +47,16 @@ namespace Particulator.Tiles
             return true;
         }
 
+        public override void HitWire(int i, int j)
+        {
+            int index = MyTE.Find(i, j);
+            if (index == -1) return;
+
+            ParticulatorTE te = (ParticulatorTE)TileEntity.ByID[index];
+
+            te.Wire();
+        }
+
         public override void PostDraw(int i, int j, SpriteBatch spriteBatch)
         {
             if (Main.drawDiag)
@@ -56,7 +66,7 @@ namespace Particulator.Tiles
 
                 ParticulatorTE te = (ParticulatorTE)TileEntity.ByID[index];
 
-                string text = te.myDusts.Count.ToString();
+                string text = te.MyDusts.Count.ToString();
 
                 Vector2 size = Main.fontMouseText.MeasureString(text);
                 Vector2 screen = (new Vector2(i, j) * 16) - Main.screenPosition;

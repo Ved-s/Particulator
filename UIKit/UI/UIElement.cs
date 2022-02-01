@@ -20,6 +20,7 @@ namespace UIKit.UI
         public PercentPos Pos { get => _pos; set { _pos = value; Transform.Offset = value.Value; } }
         public virtual PercentPos Size { get; set; }
         public virtual bool NoHover { get; set; }
+        public string HoverText { get; set; }
 
         public HashSet<Type> IgnoreGlobalExtensions { get; } = new HashSet<Type>();
         public ExtensionManager Extensions { get; }

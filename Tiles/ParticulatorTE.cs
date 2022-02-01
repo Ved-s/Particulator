@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Terraria;
@@ -11,72 +12,183 @@ namespace Particulator.Tiles
 {
     public class ParticulatorTE : ModTileEntity
     {
-        public HashSet<int> myDusts = new HashSet<int>();
-        public SpawnParams spawnData = new SpawnParams();
+        public HashSet<int> MyDusts = new HashSet<int>();
+        public SpawnParams CurrentSpawnData => SpawnDataArray[CurrentDataIndex];
 
-        private List<int> removeDusts = new List<int>();
-        private List<int> removeMyDusts = new List<int>();
+        public SpawnParams[] SpawnDataArray = new SpawnParams[4]; // Selected by wires, 0 - Red, 1 - Blue, 2 - Green, 3 - Yellow
+        public int CurrentDataIndex = 0;
 
+        private List<int> RemoveDusts = new List<int>();
+        private List<int> RemoveMyDusts = new List<int>();
 
-        float dpfCounter = 0f;
+        private float DPFCounter = 0f;
         static Vector2 InvertY = new Vector2(1, -1);
 
-        public override bool ValidTile(int i, int j)
+        public ParticulatorTE()
         {
-            Tile tile = Main.tile[i, j];
-            return tile.active() && tile.type == ModContent.TileType<Particulator>();
-        }
-
-        public void DataUpdated()
-        {
-            if (Main.netMode == NetmodeID.MultiplayerClient)
-            {
-                ModPacket packet = mod.GetPacket();
-                packet.Write((byte)1);
-                packet.Write(Position.X);
-                packet.Write(Position.Y);
-                NetSend(packet, false);
-                packet.Send();
-            }
+            for (int i = 0; i < 4; i++)
+                SpawnDataArray[i] = new SpawnParams();
         }
 
         public override void Update()
         {
             if (Main.netMode == NetmodeID.Server) return;
 
-            dpfCounter += spawnData.DustsPerFrame;
-            while (dpfCounter >= 1f)
+            if (CurrentSpawnData.Enabled)
             {
-                if (spawnData.MaxDust < 0 || myDusts.Count < spawnData.MaxDust)
+                DPFCounter += CurrentSpawnData.DustsPerFrame;
+                while (DPFCounter >= 1f)
                 {
-                    int id = CreateDust();
-                    if (id != -1) myDusts.Add(id);
+                    if (CurrentSpawnData.MaxDust < 0 || MyDusts.Count < CurrentSpawnData.MaxDust)
+                    {
+                        int id = CreateDust();
+                        if (id != -1) MyDusts.Add(id);
+                    }
+                    DPFCounter -= 1f;
                 }
-                dpfCounter -= 1f;
             }
 
-            foreach (int id in myDusts)
+            foreach (int id in MyDusts)
             {
                 Dust dust = Main.dust[id];
                 if (!dust.active || !(dust.customData is DustData data))
-                    removeMyDusts.Add(id);
+                    RemoveMyDusts.Add(id);
                 else if (data.Owner == ID) UpdateDust(Main.dust[id]);
-                else removeDusts.Add(id);
+                else RemoveDusts.Add(id);
             }
 
-            foreach (int id in removeMyDusts)
+            foreach (int id in RemoveMyDusts)
             {
                 ClearDust(Main.dust[id]);
-                myDusts.Remove(id);
+                MyDusts.Remove(id);
             }
 
-            foreach (int id in removeDusts)
+            foreach (int id in RemoveDusts)
             {
-                myDusts.Remove(id);
+                MyDusts.Remove(id);
             }
 
-            removeDusts.Clear();
-            removeMyDusts.Clear();
+            RemoveDusts.Clear();
+            RemoveMyDusts.Clear();
+        }
+        public override bool ValidTile(int i, int j)
+        {
+            Tile tile = Main.tile[i, j];
+            return tile.active() && tile.type == ModContent.TileType<Particulator>();
+        }
+        public override int Hook_AfterPlacement(int i, int j, int type, int style, int direction)
+        {
+            if (Main.netMode == NetmodeID.MultiplayerClient)
+            {
+                NetMessage.SendTileSquare(Main.myPlayer, i, j, 3);
+                NetMessage.SendData(MessageID.TileEntityPlacement, -1, -1, null, i, j, Type, 0f, 0, 0, 0);
+                return -1;
+            }
+            return Place(i, j);
+        }
+        public override void OnKill()
+        {
+            foreach (int id in MyDusts)
+            {
+                Dust dust = Main.dust[id];
+                ClearDust(dust);
+            }
+        }
+
+        public void DataUpdated(SyncDataType type)
+        {
+            if (Main.netMode != NetmodeID.SinglePlayer)
+            {
+                ModPacket packet = mod.GetPacket();
+                packet.Write((byte)1);
+                packet.Write(Position.X);
+                packet.Write(Position.Y);
+                packet.Write((byte)CurrentDataIndex);
+                packet.Write((byte)type);
+
+                SpawnParams d = CurrentSpawnData;
+
+                switch (type)
+                {
+                    case SyncDataType.State:        break;
+                    case SyncDataType.Enabled:      packet.Write(d.Enabled);            break;
+                    case SyncDataType.Type:         packet.Write(d.DustType);           break;
+                    case SyncDataType.DPF:          packet.Write(d.DustsPerFrame);      break;
+                    case SyncDataType.SpawnPos:     d.SpawnPos.Write(packet);           break;
+                    case SyncDataType.Velocity:     d.Velocity.Write(packet);           break;
+                    case SyncDataType.Acceleration: d.Acceleration.Write(packet);       break;
+                    case SyncDataType.Scale:        d.Scale.Write(packet);              break;
+                    case SyncDataType.Time:         d.Time.Write(packet);               break;
+                    case SyncDataType.StartRot:     d.StartRotation.Write(packet);      break;
+                    case SyncDataType.Rotation:     d.Rotation.Write(packet);           break;
+                    case SyncDataType.Collision:    packet.Write(d.Collision);          break;
+                    case SyncDataType.Dye:          packet.Write(d.Dye?.type ?? 0);     break;
+                    case SyncDataType.MaxDust:      packet.Write(d.MaxDust);            break;
+                    case SyncDataType.DoLight:      packet.Write(d.DoLight);            break;
+                    case SyncDataType.SameLight:    packet.Write(d.LightIsSameAsColor); break;
+                    case SyncDataType.Light:        d.LightRange.Write(packet);         break;
+                    case SyncDataType.Color:        d.ColorRange.Write(packet);         break;
+                }
+
+                packet.Send();
+            }
+        }
+        public void ReceiveData(BinaryReader reader)
+        {
+            byte dataIndex = reader.ReadByte();
+            SpawnParams d = SpawnDataArray[dataIndex];
+
+            SyncDataType syncType = (SyncDataType)reader.ReadByte();
+
+            switch (syncType)
+            {
+                case SyncDataType.State:        CurrentDataIndex = dataIndex;          break;
+                case SyncDataType.Enabled:      d.Enabled = reader.ReadBoolean();      break;
+                case SyncDataType.Type:         d.DustType = reader.ReadInt16();       break;
+                case SyncDataType.DPF:          d.DustsPerFrame = reader.ReadSingle(); break;
+                case SyncDataType.SpawnPos:     d.SpawnPos.Read(reader);               break;
+                case SyncDataType.Velocity:     d.Velocity.Read(reader);               break;
+                case SyncDataType.Acceleration: d.Acceleration.Read(reader);           break;
+                case SyncDataType.Scale:        d.Scale.Read(reader);                  break;
+                case SyncDataType.Time:         d.Time.Read(reader);                   break;
+                case SyncDataType.StartRot:     d.StartRotation.Read(reader);          break;
+                case SyncDataType.Rotation:     d.Rotation.Read(reader);               break;
+                case SyncDataType.Collision:    d.Collision = reader.ReadBoolean();    break;
+                case SyncDataType.Dye:
+                    int dye = reader.ReadInt32();
+                    if (dye == 0)
+                        d.Dye = null;
+                    else
+                    {
+                        d.Dye = new Item();
+                        d.Dye.SetDefaults(dye);
+                    }
+                    break;
+                case SyncDataType.MaxDust:      d.MaxDust = reader.ReadInt32();        break;
+                case SyncDataType.DoLight:      d.DoLight = reader.ReadBoolean();      break;
+                case SyncDataType.SameLight:    d.LightIsSameAsColor = reader.ReadBoolean(); break;
+                case SyncDataType.Light:        d.LightRange.Read(reader);         break;
+                case SyncDataType.Color:        d.ColorRange.Read(reader);         break;
+            }
+
+            if (Interface.TE == this) Interface.UpdateData();
+        }
+
+        public void Wire()
+        {
+            if (Wiring._currentWireColor - 1 == CurrentDataIndex)
+            {
+                CurrentSpawnData.Enabled = !CurrentSpawnData.Enabled;
+                DataUpdated(SyncDataType.Enabled);
+            }
+            else
+            {
+                CurrentDataIndex = Wiring._currentWireColor - 1;
+                DataUpdated(SyncDataType.State);
+            }
+
+            
+            if (Interface.TE == this) Interface.UpdateData();
         }
 
         public void ClearDust(Dust dust)
@@ -84,14 +196,13 @@ namespace Particulator.Tiles
             dust.customData = null;
             dust.noGravity = false;
         }
-
         public int CreateDust()
         {
-            Vector2 offset = (spawnData.SpawnPos.Random() - Vector2.UnitY) * InvertY;
+            Vector2 offset = (CurrentSpawnData.SpawnPos.Random() - Vector2.UnitY) * InvertY;
             Vector2 pos = Position.ToVector2() * 16 + offset * 16;
-            Vector2 velocity = spawnData.Velocity.Random() * InvertY;
+            Vector2 velocity = CurrentSpawnData.Velocity.Random() * InvertY;
 
-            int id = Dust.NewDust(pos, 1, 1, spawnData.DustType);
+            int id = Dust.NewDust(pos, 1, 1, CurrentSpawnData.DustType);
 
             if (id == 6000)
             {
@@ -100,33 +211,32 @@ namespace Particulator.Tiles
             }
 
             Dust dust = Main.dust[id];
-            float scale = spawnData.Scale.Random();
+            float scale = CurrentSpawnData.Scale.Random();
 
             Vector2 center = new Vector2(dust.frame.Width, dust.frame.Height) * 0.5f;
             dust.position -= center;
 
             dust.velocity = velocity;
             dust.noGravity = true;
-            dust.rotation = spawnData.StartRotation.Random();
+            dust.rotation = CurrentSpawnData.StartRotation.Random();
 
-            dust.noLight = !spawnData.DoLight;
-            dust.color = spawnData.ColorRange.Random();
-            dust.shader = spawnData.Dye == null ? null :
-                GameShaders.Armor.GetSecondaryShader(spawnData.Dye.dye, Main.LocalPlayer);
+            dust.noLight = !CurrentSpawnData.DoLight;
+            dust.color = CurrentSpawnData.ColorRange.Random();
+            dust.shader = CurrentSpawnData.Dye == null ? null :
+                GameShaders.Armor.GetSecondaryShader(CurrentSpawnData.Dye.dye, Main.LocalPlayer);
 
             dust.customData = new DustData()
             {
                 Owner = ID,
                 Scale = scale,
-                LifeTime = spawnData.Time.Random(),
-                Rotation = spawnData.Rotation.Random(),
-                LightColor = (spawnData.LightIsSameAsColor ? dust.color : spawnData.LightRange.Random()).ToVector3(),
-                Acceleration = spawnData.Acceleration.Random() * InvertY,
+                LifeTime = CurrentSpawnData.Time.Random(),
+                Rotation = CurrentSpawnData.Rotation.Random(),
+                LightColor = (CurrentSpawnData.LightIsSameAsColor ? dust.color : CurrentSpawnData.LightRange.Random()).ToVector3(),
+                Acceleration = CurrentSpawnData.Acceleration.Random() * InvertY,
             };
 
             return id;
         }
-
         public void UpdateDust(Dust dust)
         {
             if (!(dust.customData is DustData data)) return;
@@ -137,7 +247,7 @@ namespace Particulator.Tiles
             if (dust.velocity.X != 0 || dust.velocity.Y != 0)
             {
                 posDiff = dust.velocity;
-                if (spawnData.Collision)
+                if (CurrentSpawnData.Collision)
                 {
                     if (Collision.SolidCollision(dust.position, 1, 1))
                     {
@@ -164,28 +274,146 @@ namespace Particulator.Tiles
 
         }
 
-        public override int Hook_AfterPlacement(int i, int j, int type, int style, int direction)
+        public override TagCompound Save()
         {
-            if (Main.netMode == NetmodeID.MultiplayerClient)
+            return new TagCompound()
             {
-                NetMessage.SendTileSquare(Main.myPlayer, i, j, 3);
-                NetMessage.SendData(MessageID.TileEntityPlacement, -1, -1, null, i, j, Type, 0f, 0, 0, 0);
-                return -1;
+                ["current"] = CurrentDataIndex,
+                ["red"] = IndexedSave(0),
+                ["blue"] = IndexedSave(1),
+                ["green"] = IndexedSave(2),
+                ["yellow"] = IndexedSave(3),
+            };
+        }
+        public override void Load(TagCompound tag)
+        {
+            if (tag.ContainsKey("spawn"))
+            {
+                CurrentDataIndex = 0;
+                IndexedLoad(0, tag["spawn"] as TagCompound);
             }
-            return Place(i, j);
+            else
+            {
+                tag.TryLoad("current", ref CurrentDataIndex);
+                IndexedLoad(0, tag["red"] as TagCompound);
+                IndexedLoad(1, tag["blue"] as TagCompound);
+                IndexedLoad(2, tag["green"] as TagCompound);
+                IndexedLoad(3, tag["yellow"] as TagCompound);
+            }
         }
 
-        public override void OnKill()
+        private TagCompound IndexedSave(int index)
         {
-            foreach (int id in myDusts)
+            SpawnParams param = SpawnDataArray[index];
+
+            return new TagCompound()
             {
-                Dust dust = Main.dust[id];
-                ClearDust(dust);
+                ["enabled"] = param.Enabled,
+                ["type"] = param.DustType,
+                ["dpf"] = param.DustsPerFrame,
+                ["spawn"] = param.SpawnPos,
+                ["vel"] = param.Velocity,
+                ["acc"] = param.Acceleration,
+                ["scale"] = param.Scale,
+                ["time"] = param.Time,
+                ["strot"] = param.StartRotation,
+                ["rot"] = param.Rotation,
+                ["coll"] = param.Collision,
+                ["dye"] = param.Dye == null ? null : ItemIO.Save(param.Dye),
+                ["max"] = param.MaxDust,
+                ["light"] = param.DoLight,
+                ["same"] = param.LightIsSameAsColor,
+                ["lightcolor"] = param.LightRange,
+                ["color"] = param.ColorRange
+            };
+        }
+        private void IndexedLoad(int index, TagCompound tag)
+        {
+            if (tag is null) return;
+
+            SpawnParams param = SpawnDataArray[index];
+
+            tag.TryLoad("enabled", ref param.Enabled);
+            tag.TryLoad("type", ref param.DustType);
+            tag.TryLoad("dpf", ref param.DustsPerFrame);
+            tag.TryLoad("spawn", ref param.SpawnPos);
+            tag.TryLoad("vel", ref param.Velocity);
+            tag.TryLoad("acc", ref param.Acceleration);
+            tag.TryLoad("scale", ref param.Scale);
+            tag.TryLoad("time", ref param.Time);
+            tag.TryLoad("strot", ref param.StartRotation);
+            tag.TryLoad("rot", ref param.Rotation);
+            tag.TryLoad("coll", ref param.Collision);
+            if (tag.ContainsKey("dye")) param.Dye = tag["dye"] == null ? null : ItemIO.Load(tag["dye"] as TagCompound);
+            tag.TryLoad("max", ref param.MaxDust);
+            tag.TryLoad("light", ref param.DoLight);
+            tag.TryLoad("same", ref param.LightIsSameAsColor);
+            tag.TryLoad("lightcolor", ref param.LightRange);
+            tag.TryLoad("color", ref param.ColorRange);
+        }
+
+        public override void NetSend(BinaryWriter writer, bool lightSend)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                SpawnParams data = SpawnDataArray[i];
+                writer.Write(data.Enabled);
+                writer.Write(data.DustType);
+                writer.Write(data.DustsPerFrame);
+                data.SpawnPos.Write(writer);
+                data.Velocity.Write(writer);
+                data.Acceleration.Write(writer);
+                data.Scale.Write(writer);
+                data.Time.Write(writer);
+                data.StartRotation.Write(writer);
+                data.Rotation.Write(writer);
+                writer.Write(data.Collision);
+                writer.Write(data.Dye?.type ?? 0);
+                writer.Write(data.MaxDust);
+                writer.Write(data.DoLight);
+                writer.Write(data.LightIsSameAsColor);
+                data.LightRange.Write(writer);
+                data.ColorRange.Write(writer);
+            }
+        }
+        public override void NetReceive(BinaryReader reader, bool lightReceive)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                SpawnParams data = SpawnDataArray[i];
+
+                data.Enabled = reader.ReadBoolean();
+                data.DustType = reader.ReadInt16();
+                data.DustsPerFrame = reader.ReadSingle();
+                data.SpawnPos.Read(reader);
+                data.Velocity.Read(reader);
+                data.Acceleration.Read(reader);
+                data.Scale.Read(reader);
+                data.Time.Read(reader);
+                data.StartRotation.Read(reader);
+                data.Rotation.Read(reader);
+                data.Collision = reader.ReadBoolean();
+                int dye = reader.ReadInt32();
+                data.MaxDust = reader.ReadInt32();
+                data.DoLight = reader.ReadBoolean();
+                data.LightIsSameAsColor = reader.ReadBoolean();
+                data.LightRange.Read(reader);
+                data.ColorRange.Read(reader);
+
+                if (dye == 0)
+                    data.Dye = null;
+                else 
+                {
+                    data.Dye = new Item();
+                    data.Dye.SetDefaults(dye);
+                }
             }
         }
 
         public class SpawnParams
         {
+            public bool Enabled = true;
+
             public short DustType = DustID.Fire;
             public float DustsPerFrame = 20f;
             public Vector2Range SpawnPos = new Vector2Range(0f, 1.5f, 1f, 1.5f);
@@ -206,71 +434,6 @@ namespace Particulator.Tiles
 
             public ColorRange LightRange = new ColorRange(Color.Lime, Color.Lime);
             public ColorRange ColorRange = new ColorRange(Color.Orange, Color.Yellow);
-        }
-
-        public override TagCompound Save()
-        {
-            return new TagCompound()
-            {
-                ["spawn"] = new TagCompound() 
-                {
-                    ["type"]  = spawnData.DustType,
-                    ["dpf"]   = spawnData.DustsPerFrame,
-                    ["spawn"] = spawnData.SpawnPos,
-                    ["vel"]   = spawnData.Velocity,
-                    ["acc"]   = spawnData.Acceleration,
-                    ["scale"] = spawnData.Scale,
-                    ["time"]  = spawnData.Time,
-                    ["strot"] = spawnData.StartRotation,
-                    ["rot"]   = spawnData.Rotation,
-                    ["coll"]  = spawnData.Collision,
-                    ["dye"]   = spawnData.Dye == null ? null : ItemIO.Save(spawnData.Dye),
-                    ["max"]   = spawnData.MaxDust,
-                    ["light"] = spawnData.DoLight,
-                    ["same"]  = spawnData.LightIsSameAsColor,
-                    ["lightcolor"] = spawnData.LightRange,
-                    ["color"] = spawnData.ColorRange
-                }
-            };
-        }
-
-        public override void Load(TagCompound tag)
-        {
-            if (tag.ContainsKey("spawn")) 
-            {
-                TagCompound spawn = tag["spawn"] as TagCompound;
-
-                spawn.TryLoad("type",  ref spawnData.DustType);
-                spawn.TryLoad("dpf",   ref spawnData.DustsPerFrame);
-                spawn.TryLoad("spawn", ref spawnData.SpawnPos);
-                spawn.TryLoad("vel",   ref spawnData.Velocity);
-                spawn.TryLoad("acc",   ref spawnData.Acceleration);
-                spawn.TryLoad("scale", ref spawnData.Scale);
-                spawn.TryLoad("time",  ref spawnData.Time);
-                spawn.TryLoad("strot", ref spawnData.StartRotation);
-                spawn.TryLoad("rot",   ref spawnData.Rotation);
-                spawn.TryLoad("coll",  ref spawnData.Collision);
-                if (spawn.ContainsKey("dye")) spawnData.Dye = spawn["dye"] == null ? null : ItemIO.Load(spawn["dye"] as TagCompound);
-                spawn.TryLoad("max",   ref spawnData.MaxDust);
-                spawn.TryLoad("light", ref spawnData.DoLight);
-                spawn.TryLoad("same",  ref spawnData.LightIsSameAsColor);
-                spawn.TryLoad("lightcolor", ref spawnData.LightRange);
-                spawn.TryLoad("color", ref spawnData.ColorRange);
-            }
-        }
-
-        public override void NetSend(BinaryWriter writer, bool lightSend)
-        {
-            long pos = writer.BaseStream.Position;
-            TagIO.Write(Save(), writer);
-            long diff = writer.BaseStream.Position - pos;
-        }
-
-        public override void NetReceive(BinaryReader reader, bool lightReceive)
-        {
-            long pos = reader.BaseStream.Position;
-            Load(TagIO.Read(reader));
-            long diff = reader.BaseStream.Position - pos;
         }
 
         public class DustData
@@ -316,6 +479,22 @@ namespace Particulator.Tiles
 
                 return new Vector2(x, y);
             }
+
+            public void Write(BinaryWriter writer)
+            {
+                writer.Write(Min.X);
+                writer.Write(Min.Y);
+                writer.Write(Max.X);
+                writer.Write(Max.Y);
+            }
+
+            public void Read(BinaryReader reader)
+            {
+                Min.X = reader.ReadSingle();
+                Min.Y = reader.ReadSingle();
+                Max.X = reader.ReadSingle();
+                Max.Y = reader.ReadSingle();
+            }
         }
         public struct IntRange
         {
@@ -337,6 +516,17 @@ namespace Particulator.Tiles
                 else
                     return Main.rand.Next(Max, Min);
             }
+            public void Write(BinaryWriter writer)
+            {
+                writer.Write(Min);
+                writer.Write(Max);
+            }
+
+            public void Read(BinaryReader reader)
+            {
+                Min = reader.ReadInt32();
+                Max = reader.ReadInt32();
+            }
         }
         public struct FloatRange
         {
@@ -357,6 +547,17 @@ namespace Particulator.Tiles
                     return Main.rand.NextFloat(Min, Max);
                 else
                     return Main.rand.NextFloat(Max, Min);
+            }
+            public void Write(BinaryWriter writer)
+            {
+                writer.Write(Min);
+                writer.Write(Max);
+            }
+
+            public void Read(BinaryReader reader)
+            {
+                Min = reader.ReadSingle();
+                Max = reader.ReadSingle();
             }
         }
         public struct ColorRange
@@ -397,6 +598,40 @@ namespace Particulator.Tiles
                     A = (byte)(Min.A * (1 - a) + Max.A * a),
                 };
             }
+
+            public void Write(BinaryWriter writer)
+            {
+                writer.Write(Min.PackedValue);
+                writer.Write(Max.PackedValue);
+            }
+
+            public void Read(BinaryReader reader)
+            {
+                Min.PackedValue = reader.ReadUInt32();
+                Max.PackedValue = reader.ReadUInt32();
+            }
+        }
+
+        public enum SyncDataType : byte
+        {
+            State, 
+            Enabled,
+            Type,
+            DPF,
+            SpawnPos,
+            Velocity,
+            Acceleration,
+            Scale,
+            Time,
+            StartRot,
+            Rotation,
+            Collision,
+            Dye,
+            MaxDust,
+            DoLight,
+            SameLight,
+            Light,
+            Color
         }
     }
 }

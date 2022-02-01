@@ -64,10 +64,12 @@ namespace Particulator
         public override void HandlePacket(BinaryReader reader, int whoAmI)
         {
             byte type = reader.ReadByte();
-            if (type == 1) 
+
+            if (type == 1)
             {
                 short x = reader.ReadInt16();
                 short y = reader.ReadInt16();
+
                 int index = ModContent.GetInstance<ParticulatorTE>().Find(x, y);
                 if (index == -1) 
                 {
@@ -75,9 +77,12 @@ namespace Particulator
                     return;
                 }
 
+                long pos = reader.BaseStream.Position;
+
                 ParticulatorTE te = (ParticulatorTE)TileEntity.ByID[index];
-                TagCompound tag = TagIO.Read(reader);
-                te.Load(tag);
+                te.ReceiveData(reader);
+
+                long diff = reader.BaseStream.Position - pos;
 
                 if (Main.netMode == Terraria.ID.NetmodeID.Server)
                 {
@@ -85,7 +90,8 @@ namespace Particulator
                     packet.Write((byte)1);
                     packet.Write(x);
                     packet.Write(y);
-                    TagIO.Write(tag, packet);
+                    reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                    packet.Write(reader.ReadBytes((int)diff));
                     packet.Send(-1, whoAmI);
                 }
                 else 

@@ -23,10 +23,13 @@ namespace Particulator
 
         public static UIRoot Root;
         public static UIContainer Container;
+        public static UIContainer StateSwitch;
 
         private static Dictionary<short, string> DustSearchMap;
         private static List<short> SearchResult;
         private static bool SelectionLocked;
+
+        private static string[] StateMap = new string[] { "red", "blue", "green", "yellow" };
 
         public static ParticulatorTE TE
         {
@@ -50,12 +53,13 @@ namespace Particulator
         {
             if (te == null) return;
 
-            ParticulatorTE.SpawnParams data = te.spawnData;
+            ParticulatorTE.SpawnParams data = te.CurrentSpawnData;
 
             UpdateSearch();
             Container.GetElement<LabelInput>("./topBox/dpf").InputText = data.DustsPerFrame.ToString();
             Container.GetElement<LabelInput>("./topBox/maxDust").InputText = data.MaxDust.ToString();
             Container.GetElement<UICheckButton>("./topBox/collision").Checked = data.Collision;
+            Container.GetElement<UICheckButton>("./topBox/enabled").Checked = data.Enabled;
             Container.GetElement<XYRange>("./spawnRange").SetRange(data.SpawnPos);
             Container.GetElement<XYRange>("./velocityRange").SetRange(data.Velocity);
             Container.GetElement<XYRange>("./accRange").SetRange(data.Acceleration);
@@ -68,6 +72,11 @@ namespace Particulator
             Container.GetElement<ColorRange>("./colors/lightRange").SetRange(data.LightRange);
             Container.GetElement<UICheckButton>("./colors/light").Checked = data.DoLight;
             Container.GetElement<UICheckButton>("./colors/lightSame").Checked = data.LightIsSameAsColor;
+
+            UIRadioButton radio = StateSwitch.GetElement<UIRadioButton>(StateMap[te.CurrentDataIndex]);
+            radio.SuppressChangeEvent = true;
+            radio.Checked = true;
+            radio.SuppressChangeEvent = false;
         }
         public static void UpdateSearch()
         {
@@ -80,8 +89,8 @@ namespace Particulator
 
             string search = input.Text.ToLower();
 
-            SearchResult.Add(te.spawnData.DustType);
-            list.Items.Add(DustSearchMap[te.spawnData.DustType]);
+            SearchResult.Add(te.CurrentSpawnData.DustType);
+            list.Items.Add(DustSearchMap[te.CurrentSpawnData.DustType]);
 
             SelectionLocked = true;
             list.Selected = 0;
@@ -103,8 +112,8 @@ namespace Particulator
             if (te == null) return;
             if (index < 0 || index >= SearchResult.Count) return;
 
-            te.spawnData.DustType = SearchResult[index];
-            te.DataUpdated();
+            te.CurrentSpawnData.DustType = SearchResult[index];
+            te.DataUpdated(ParticulatorTE.SyncDataType.Type);
         }
 
         internal static void Unload() 
@@ -136,20 +145,24 @@ namespace Particulator
             SearchResult = new List<short>();
             Root = new UIRoot(Main.instance)
             {
+#if !DEBUG
                 DebugEnabled = false,
+#endif
                 Visible = false,
                 Elements =
                 {
-                    //new UIButton()
-                    //{
-                    //    Pos = new PercentPos(0.5f, -200, 0.5f, -380),
-                    //    Size = new PercentPos(80, 24),
-                    //    Text = "Reload",
-                    //    OnClick = (b) => InitUI(),
-                    //    TextAlign = Align.Center,
-                    //    Colors = new Colors(Color.White, Color.Transparent, Color.Yellow),
-                    //    HoverColors = new Colors(Color.White, Color.White * 0.2f),
-                    //}
+#if DEBUG
+                    new UIButton()
+                    {
+                        Pos = new PercentPos(0.5f, -200, 0.5f, -380),
+                        Size = new PercentPos(80, 24),
+                        Text = "Reload",
+                        OnClick = (b) => InitUI(),
+                        TextAlign = Align.Center,
+                        Colors = new Colors(Color.White, Color.Transparent, Color.Yellow),
+                        HoverColors = new Colors(Color.White, Color.White * 0.2f),
+                    },
+#endif
                 }
             };
 
@@ -164,7 +177,7 @@ namespace Particulator
             };
             Root.OnGlobalHoverChanged += (prev, now) =>
             {
-                if (now is UIButton) 
+                if (now is UIButton)
                 {
                     Main.PlaySound(Terraria.ID.SoundID.MenuTick);
                 }
@@ -184,6 +197,7 @@ namespace Particulator
         {
             Container = new UIContainer()
             {
+                Name = "main",
                 Colors = new Colors(Color.White, new Color(63, 82, 151) * 0.7f),
                 Pos = new PercentPos(0.5f, -200, 0.5f, -350),
                 Size = new PercentPos(400, 700),
@@ -260,8 +274,8 @@ namespace Particulator
                                 {
                                     if (float.TryParse(s, out float v))
                                     {
-                                        te.spawnData.DustsPerFrame = v;
-                                        te.DataUpdated();
+                                        te.CurrentSpawnData.DustsPerFrame = v;
+                                        te.DataUpdated(ParticulatorTE.SyncDataType.DPF);
                                     }
                                 }
                             },
@@ -280,23 +294,38 @@ namespace Particulator
                                 {
                                     if (int.TryParse(s, out int v))
                                     {
-                                        te.spawnData.MaxDust = v;
-                                        te.DataUpdated();
+                                        te.CurrentSpawnData.MaxDust = v;
+                                        te.DataUpdated(ParticulatorTE.SyncDataType.MaxDust);
                                     }
                                 }
                             },
                             new UICheckButton()
                             {
-                                Name = "collision",
+                                Name = "enabled",
                                 Pos = new PercentPos(0.5f, -10, 0, 70),
-                                Size = new PercentPos(0.35f, 00, 0, 24),
+                                Size = new PercentPos(0.25f, -3, 0, 24),
+                                Text = "Enabled",
+                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f),
+                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f),
+                                OnCheckedChanged = (b) =>
+                                {
+                                    te.CurrentSpawnData.Enabled = b.Checked;
+                                    te.DataUpdated(ParticulatorTE.SyncDataType.Enabled);
+                                },
+                                HoverText = "If enabled, this particulator will emit particles.\nCan be toggled with wire of current state color."
+                            },
+                            new UICheckButton()
+                            {
+                                Name = "collision",
+                                Pos = new PercentPos(0.75f, -5, 0, 70),
+                                Size = new PercentPos(0.25f, -3, 0, 24),
                                 Text = "Collision",
                                 CheckedColors = new Colors(Color.White, Color.Lime * 0.6f),
                                 HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f),
                                 OnCheckedChanged = (b) =>
                                 {
-                                    te.spawnData.Collision = b.Checked;
-                                    te.DataUpdated();
+                                    te.CurrentSpawnData.Collision = b.Checked;
+                                    te.DataUpdated(ParticulatorTE.SyncDataType.Collision);
                                 }
                             }
                         }
@@ -311,8 +340,8 @@ namespace Particulator
                         Max = new Vec2f(1.5f),
                         OnRangeChanged = (r) => 
                         {
-                            te.spawnData.SpawnPos = r.GetRange();
-                            te.DataUpdated();
+                            te.CurrentSpawnData.SpawnPos = r.GetRange();
+                            te.DataUpdated(ParticulatorTE.SyncDataType.SpawnPos);
                         }
                     },
                     new XYRange()
@@ -325,8 +354,8 @@ namespace Particulator
                         Max = new Vec2f(1.5f),
                         OnRangeChanged = (r) =>
                         {
-                            te.spawnData.Velocity = r.GetRange();
-                            te.DataUpdated();
+                            te.CurrentSpawnData.Velocity = r.GetRange();
+                            te.DataUpdated(ParticulatorTE.SyncDataType.Velocity);
                         }
                     },
                     new XYRange()
@@ -339,8 +368,8 @@ namespace Particulator
                         Max = new Vec2f(1.5f),
                         OnRangeChanged = (r) =>
                         {
-                            te.spawnData.Acceleration = r.GetRange();
-                            te.DataUpdated();
+                            te.CurrentSpawnData.Acceleration = r.GetRange();
+                            te.DataUpdated(ParticulatorTE.SyncDataType.Acceleration);
                         }
                     },
                     new FloatRange()
@@ -353,8 +382,8 @@ namespace Particulator
                         Max = 1.5f,
                         OnRangeChanged = (r) =>
                         {
-                            te.spawnData.Scale = r.GetRange();
-                            te.DataUpdated();
+                            te.CurrentSpawnData.Scale = r.GetRange();
+                            te.DataUpdated(ParticulatorTE.SyncDataType.Scale);
                         }
                     },
                     new IntRange()
@@ -367,8 +396,8 @@ namespace Particulator
                         Max = 60,
                         OnRangeChanged = (r) =>
                         {
-                            te.spawnData.Time = r.GetRange();
-                            te.DataUpdated();
+                            te.CurrentSpawnData.Time = r.GetRange();
+                            te.DataUpdated(ParticulatorTE.SyncDataType.Time);
                         }
                     },
                     new FloatRange()
@@ -381,8 +410,8 @@ namespace Particulator
                         Max = 6.28f,
                         OnRangeChanged = (r) =>
                         {
-                            te.spawnData.StartRotation = r.GetRange();
-                            te.DataUpdated();
+                            te.CurrentSpawnData.StartRotation = r.GetRange();
+                            te.DataUpdated(ParticulatorTE.SyncDataType.StartRot);
                         }
                     },
                     new FloatRange()
@@ -395,8 +424,8 @@ namespace Particulator
                         Max = 6.28f,
                         OnRangeChanged = (r) =>
                         {
-                            te.spawnData.Rotation = r.GetRange();
-                            te.DataUpdated();
+                            te.CurrentSpawnData.Rotation = r.GetRange();
+                            te.DataUpdated(ParticulatorTE.SyncDataType.Rotation);
                         }
                     },
                     new UIItemSlot()
@@ -409,8 +438,8 @@ namespace Particulator
                         ItemFilter = (i) => i.dye != 0,
                         OnItemChanged = (i) => 
                         {
-                            te.spawnData.Dye = i.Item;
-                            te.DataUpdated();
+                            te.CurrentSpawnData.Dye = i.Item;
+                            te.DataUpdated(ParticulatorTE.SyncDataType.Dye);
                         }
                     },
                     new UILabel()
@@ -439,9 +468,10 @@ namespace Particulator
                                 HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f),
                                 OnCheckedChanged = (b) =>
                                 {
-                                    te.spawnData.DoLight = b.Checked;
-                                    te.DataUpdated();
-                                }
+                                    te.CurrentSpawnData.DoLight = b.Checked;
+                                    te.DataUpdated(ParticulatorTE.SyncDataType.DoLight);
+                                },
+                                HoverText = "If enabled, spawned particles will emit light."
                             },
                             new UICheckButton()
                             {
@@ -453,9 +483,10 @@ namespace Particulator
                                 HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f),
                                 OnCheckedChanged = (b) =>
                                 {
-                                    te.spawnData.LightIsSameAsColor = b.Checked;
-                                    te.DataUpdated();
-                                }
+                                    te.CurrentSpawnData.LightIsSameAsColor = b.Checked;
+                                    te.DataUpdated(ParticulatorTE.SyncDataType.SameLight);
+                                },
+                                HoverText = "If enabled, emitted light color will be the same as chosen particle color."
                             },
                             new ColorRange()
                             {
@@ -466,8 +497,8 @@ namespace Particulator
                                 Max = Color.White,
                                 OnRangeChanged = (r) =>
                                 {
-                                    te.spawnData.ColorRange = r.GetRange();
-                                    te.DataUpdated();
+                                    te.CurrentSpawnData.ColorRange = r.GetRange();
+                                    te.DataUpdated(ParticulatorTE.SyncDataType.Color);
                                 }
                             },
                             new ColorRange()
@@ -481,18 +512,98 @@ namespace Particulator
                                 NoAlpha = true,
                                 OnRangeChanged = (r) =>
                                 {
-                                    te.spawnData.LightRange = r.GetRange();
-                                    te.DataUpdated();
+                                    te.CurrentSpawnData.LightRange = r.GetRange();
+                                    te.DataUpdated(ParticulatorTE.SyncDataType.Light);
                                 }
                             },
                         }
                     }
                 }
             };
-            Root.Elements.Remove<UIContainer>();
+            Root.Elements.Remove<UIContainer>("main");
             Root.Elements.Add(Container);
+
+            StateSwitch = new UIContainer()
+            {
+                Name = "state",
+                Size = new PercentPos(50, 170),
+                Colors = new Colors(Color.White, new Color(63, 82, 151) * 0.7f),
+                Extensions = { new BorderedBG("bg") { Global = true } },
+                Elements =
+                {
+                    new UIRadioButton()
+                    {
+                        Pos = new PercentPos(10, 10),
+                        Size = new PercentPos(30, 30),
+                        Name = "red",
+                        RadioState = 0,
+                        Colors = new Colors(Color.White, 128,0,0),
+                        CheckedColors = new Colors(Color.White, Color.Red),
+                        OnRadioCheckedChanged = (s,o,n) => SetState((int)s),
+                        HoverText = "Red state.\nThis state will be selected on red wire signal."
+                    },
+                    new UIRadioButton()
+                    {
+                        Pos = new PercentPos(10, 50),
+                        Size = new PercentPos(30, 30),
+                        Name = "blue",
+                        RadioState = 1,
+                        Colors = new Colors(Color.White, 0,0,128),
+                        CheckedColors = new Colors(Color.White, Color.Blue),
+                        HoverText = "Blue state.\nThis state will be selected on blue wire signal."
+                    },
+                    new UIRadioButton()
+                    {
+                        Pos = new PercentPos(10, 90),
+                        Size = new PercentPos(30, 30),
+                        Name = "green",
+                        RadioState = 2,
+                        Colors = new Colors(Color.White, 0,128,0),
+                        CheckedColors = new Colors(Color.White, Color.Lime),
+                        HoverText = "Green state.\nThis state will be selected on green wire signal."
+                    },
+                    new UIRadioButton()
+                    {
+                        Pos = new PercentPos(10, 130),
+                        Size = new PercentPos(30, 30),
+                        Name = "yellow",
+                        RadioState = 3,
+                        Colors = new Colors(Color.White, 128,128,0),
+                        CheckedColors = new Colors(Color.White, Color.Yellow),
+                        HoverText = "Yellow state.\nThis state will be selected on yellow wire signal."
+                    },
+                }
+
+
+            };
+            Root.Elements.Remove<UIContainer>("state");
+            Root.Elements.Add(StateSwitch);
+
+            Root.OnUpdate -= UpdateStatePos;
+            Root.OnUpdate += UpdateStatePos;
+
             UpdateData();
         }
+
+        public static void UpdateStatePos(UIElement e)
+        {
+            Vec2f pos = Container.Pos.Value + Root.Bounds.Size * Container.Pos.Percent;
+            Vec2f size = Container.Bounds.Size;
+
+            pos.X -= StateSwitch.Bounds.Width + 5;
+            pos.Y += (size.Y / 2) - (StateSwitch.Bounds.Height / 2);
+
+            StateSwitch.Pos = new PercentPos(pos.X, pos.Y);
+            StateSwitch.RecalculateAllTransforms();
+        }
+
+        public static void SetState(int state) 
+        {
+            te.CurrentDataIndex = state;
+            UpdateData();
+            te.DataUpdated(ParticulatorTE.SyncDataType.State);
+        }
+
         public class DynamicFont : IFont
         {
             public DynamicSpriteFont Font;

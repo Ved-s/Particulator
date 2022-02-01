@@ -1,1 +1,6 @@
 This mod adds highly-configurable Particulator, a block that creates particles for decoration. Inspired by Particulator from Primitive Survival mod for Vintage Story.
+
+Update v0.4:
+	Particulator now have 4 states (parameter sets) which can be switched by wires
+	Particulator can be enabled/disabled (also controllable by wires)
+	Multiplayer sync rework
