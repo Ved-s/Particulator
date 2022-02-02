@@ -27,10 +27,10 @@ namespace UIKit.Modular
 
         public string InputHint { get => Input.HintText; set => Input.HintText = value; }
 
-        public Color InputBackground 
+        public Colors InputColors
         {
-            get => Input.Colors.Background;
-            set => Input.Colors = Input.Colors.WithBackground(value);
+            get => Input.Colors;
+            set => Input.Colors = value;
         }
 
         public override Colors Colors 

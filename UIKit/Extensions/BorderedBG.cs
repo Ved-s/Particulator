@@ -56,24 +56,21 @@ namespace UIKit.Extensions
             Vec2f tbend = tsize - corner;
             Vec2f tbsize = tbend - corner;
 
-            graphics.SetBatch(samplerState: SamplerState.PointWrap);
+            graphics.SetBatch(samplerState: SamplerState.PointClamp);
 
-            bool scaling = true;
-
-            graphics.DrawTexture(tex, new Rect(Vec2f.Zero, corner), color,     new Rect(Vec2f.Zero, corner), scaling);
-            graphics.DrawTexture(tex, new Rect(bend.X, 0, corner), color,      new Rect(tbend.X, 0, corner), scaling);
-            graphics.DrawTexture(tex, new Rect(0, bend.Y, corner), color,      new Rect(0, tbend.Y, corner), scaling);
-            graphics.DrawTexture(tex, new Rect(bend.X, bend.Y, corner), color, new Rect(tbend.X, tbend.Y, corner), scaling);
+            graphics.DrawTexture(tex, new Rect(Vec2f.Zero, corner), color,     new Rect(Vec2f.Zero, corner));
+            graphics.DrawTexture(tex, new Rect(bend.X, 0, corner), color,      new Rect(tbend.X, 0, corner));
+            graphics.DrawTexture(tex, new Rect(0, bend.Y, corner), color,      new Rect(0, tbend.Y, corner));
+            graphics.DrawTexture(tex, new Rect(bend.X, bend.Y, corner), color, new Rect(tbend.X, tbend.Y, corner));
             
-            graphics.DrawTexture(tex, new Rect(corner.X, 0, bsize.X, corner.Y), color,      new Rect(corner.X, 0, tbsize.X, corner.Y), scaling);
-            graphics.DrawTexture(tex, new Rect(0, corner.Y, corner.X, bsize.Y), color,      new Rect(0, corner.Y, corner.X, tbsize.Y), scaling);
-            graphics.DrawTexture(tex, new Rect(corner.X, bend.Y, bsize.X, corner.Y), color, new Rect(corner.X, tbend.Y, tbsize.X, corner.Y), scaling);
-            graphics.DrawTexture(tex, new Rect(bend.X, corner.Y, corner.X, bsize.Y), color, new Rect(tbend.X, corner.Y, corner.X, tbsize.Y), scaling);
+            graphics.DrawTexture(tex, new Rect(corner.X, 0, bsize.X, corner.Y), color,      new Rect(corner.X, 0, tbsize.X, corner.Y));
+            graphics.DrawTexture(tex, new Rect(0, corner.Y, corner.X, bsize.Y), color,      new Rect(0, corner.Y, corner.X, tbsize.Y));
+            graphics.DrawTexture(tex, new Rect(corner.X, bend.Y, bsize.X, corner.Y), color, new Rect(corner.X, tbend.Y, tbsize.X, corner.Y));
+            graphics.DrawTexture(tex, new Rect(bend.X, corner.Y, corner.X, bsize.Y), color, new Rect(tbend.X, corner.Y, corner.X, tbsize.Y));
             
-            graphics.DrawTexture(tex, new Rect(corner, bsize), color, new Rect(corner, tbsize), scaling);
+            graphics.DrawTexture(tex, new Rect(corner, bsize), color, new Rect(corner, tbsize));
 
-            graphics.SpriteBatch.End();
-            graphics.SpriteBatch.Begin();
+            graphics.SetBatch();
         }
     }
 }

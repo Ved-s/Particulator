@@ -13,7 +13,11 @@ namespace UIKit.Extensions
 
         public int GrabRange { get; set; } = 10;
         public MouseKeys Key { get; set; } = MouseKeys.Left;
-        public bool AllowTopLeftResize { get; set; }
+
+        public bool AllowTopResize { get; set; }
+        public bool AllowLeftResize { get; set; }
+        public bool AllowBottomResize { get; set; } = true;
+        public bool AllowRightResize { get; set; } = true;
 
         public bool Dragging;
 
@@ -34,12 +38,10 @@ namespace UIKit.Extensions
             {
                 mouse = m;
 
-                top = m.Y > 0 && m.Y < GrabRange;
-                right = m.X > s.X - GrabRange && m.X < s.X;
-                bottom = m.Y > s.Y - GrabRange && m.Y < s.Y;
-                left = m.X < GrabRange && m.X > 0;
-
-                if (!AllowTopLeftResize) top = left = false;
+                top    = AllowTopResize && m.Y > 0 && m.Y < GrabRange;
+                right  = AllowRightResize && m.X > s.X - GrabRange && m.X < s.X;
+                bottom = AllowBottomResize && m.Y > s.Y - GrabRange && m.Y < s.Y;
+                left   = AllowLeftResize && m.X < GrabRange && m.X > 0;
 
                 if (top && bottom) top = false;
                 if (right && left) left = false;

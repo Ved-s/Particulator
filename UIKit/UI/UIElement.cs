@@ -137,13 +137,12 @@ namespace UIKit.UI
 
         public void RecalculateTransform()
         {
-            //if (Name == "label") Debugger.Break();
-
             Bounds = new Rect(Vec2f.Zero, Size.Value + Size.Percent * (Parent?.Bounds.Size ?? Vec2f.Zero));
             Transform transform = Transform;
             transform.Offset += Pos.Percent * (Parent?.Bounds.Size ?? Vec2f.Zero);
 
             CalculatedTransform = Parent.CalculatedTransform.ApplyTransform(transform);
+            CalculatedTransform.IntClamp();
 
             AbsoluteBounds = Bounds.ApplyTransform(CalculatedTransform);
         }

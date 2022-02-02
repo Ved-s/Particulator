@@ -198,15 +198,15 @@ namespace Particulator
             Container = new UIContainer()
             {
                 Name = "main",
-                Colors = new Colors(Color.White, new Color(63, 82, 151) * 0.7f),
+                Colors = new Colors(Color.White, new Color(63, 82, 151) * 0.7f, Color.Black),
                 Pos = new PercentPos(0.5f, -200, 0.5f, -350),
                 Size = new PercentPos(400, 700),
                 Scale = 1f,
                 Extensions =
                 {
                     new Draggable() { LimitDragByParent = false },
-                    new BorderedBG("bg") { Global = true },
-                    new Resizeable(),
+                    new BorderedBG("bg", "border") { Global = true },
+                    new Resizeable() { AllowBottomResize = false },
                     new Scalable()
                 },
                 Elements =
@@ -217,8 +217,8 @@ namespace Particulator
                         Size = new PercentPos(24,24),
                         TextAlign = Align.Center,
                         Pos = new PercentPos(1, -29, 0, 5),
-                        Colors = new Colors(Color.Red, new Color(63, 82, 151) * 0.7f),
-                        HoverColors = new Colors(Color.Red, new Color(80, 90, 160) * 0.7f),
+                        Colors = new Colors(Color.Red, new Color(63, 82, 151) * 0.7f, Color.Black),
+                        HoverColors = new Colors(Color.Red, new Color(80, 90, 160) * 0.7f, Color.Black),
                         OnClick = (b) => { TE = null; }
                     },
                     new UILabel()
@@ -263,7 +263,7 @@ namespace Particulator
                             {
                                 Name = "dpf",
                                 Colors = new Colors(Color.White, Color.Transparent),
-                                InputBackground = new Color(63, 82, 151) * 0.7f,
+                                InputColors = new Colors(Color.White, new Color(63, 82, 151) * 0.7f, Color.Black),
                                 Text = "Dusts per frame:",
                                 InputWidth = 45,
                                 Pos = new PercentPos(0.5f, -13, 0, 5),
@@ -283,7 +283,7 @@ namespace Particulator
                             {
                                 Name = "maxDust",
                                 Colors = new Colors(Color.White, Color.Transparent),
-                                InputBackground = new Color(63, 82, 151) * 0.7f,
+                                InputColors = new Colors(Color.White, new Color(63, 82, 151) * 0.7f, Color.Black),
                                 Text = "Max dust:",
                                 InputWidth = 45,
                                 Pos = new PercentPos(0.5f, -13, 0, 35),
@@ -305,8 +305,8 @@ namespace Particulator
                                 Pos = new PercentPos(0.5f, -10, 0, 70),
                                 Size = new PercentPos(0.25f, -3, 0, 24),
                                 Text = "Enabled",
-                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f),
-                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f),
+                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f, Color.Black),
+                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f, Color.Black),
                                 OnCheckedChanged = (b) =>
                                 {
                                     te.CurrentSpawnData.Enabled = b.Checked;
@@ -320,8 +320,8 @@ namespace Particulator
                                 Pos = new PercentPos(0.75f, -5, 0, 70),
                                 Size = new PercentPos(0.25f, -3, 0, 24),
                                 Text = "Collision",
-                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f),
-                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f),
+                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f, Color.Black),
+                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f, Color.Black),
                                 OnCheckedChanged = (b) =>
                                 {
                                     te.CurrentSpawnData.Collision = b.Checked;
@@ -464,8 +464,8 @@ namespace Particulator
                                 Text = "Light",
                                 Pos = new PercentPos(0.5f, 5, 0, 5),
                                 Size = new PercentPos(0.15f, 0, 0, 24),
-                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f),
-                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f),
+                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f, Color.Black),
+                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f, Color.Black),
                                 OnCheckedChanged = (b) =>
                                 {
                                     te.CurrentSpawnData.DoLight = b.Checked;
@@ -479,8 +479,8 @@ namespace Particulator
                                 Text = "Same as Color",
                                 Pos = new PercentPos(0.65f, 10, 0, 5),
                                 Size = new PercentPos(0.35f, -16, 0, 24),
-                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f),
-                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f),
+                                CheckedColors = new Colors(Color.White, Color.Lime * 0.6f, Color.Black),
+                                HoverColors = new Colors(Color.White, new Color(80, 90, 160) * 0.7f, Color.Black),
                                 OnCheckedChanged = (b) =>
                                 {
                                     te.CurrentSpawnData.LightIsSameAsColor = b.Checked;
@@ -527,8 +527,8 @@ namespace Particulator
             {
                 Name = "state",
                 Size = new PercentPos(50, 170),
-                Colors = new Colors(Color.White, new Color(63, 82, 151) * 0.7f),
-                Extensions = { new BorderedBG("bg") { Global = true } },
+                Colors = new Colors(Color.White, new Color(63, 82, 151) * 0.7f, Color.Black),
+                Extensions = { new BorderedBG("bg", "border") { Global = true } },
                 Elements =
                 {
                     new UIRadioButton()
@@ -538,7 +538,7 @@ namespace Particulator
                         Name = "red",
                         RadioState = 0,
                         Colors = new Colors(Color.White, 128,0,0),
-                        CheckedColors = new Colors(Color.White, Color.Red),
+                        CheckedColors = new Colors(Color.White, Color.Red, Color.White),
                         OnRadioCheckedChanged = (s,o,n) => SetState((int)s),
                         HoverText = "Red state.\nThis state will be selected on red wire signal."
                     },
@@ -549,7 +549,7 @@ namespace Particulator
                         Name = "blue",
                         RadioState = 1,
                         Colors = new Colors(Color.White, 0,0,128),
-                        CheckedColors = new Colors(Color.White, Color.Blue),
+                        CheckedColors = new Colors(Color.White, Color.Blue, Color.White),
                         HoverText = "Blue state.\nThis state will be selected on blue wire signal."
                     },
                     new UIRadioButton()
@@ -559,7 +559,7 @@ namespace Particulator
                         Name = "green",
                         RadioState = 2,
                         Colors = new Colors(Color.White, 0,128,0),
-                        CheckedColors = new Colors(Color.White, Color.Lime),
+                        CheckedColors = new Colors(Color.White, Color.Lime, Color.White),
                         HoverText = "Green state.\nThis state will be selected on green wire signal."
                     },
                     new UIRadioButton()
@@ -569,7 +569,7 @@ namespace Particulator
                         Name = "yellow",
                         RadioState = 3,
                         Colors = new Colors(Color.White, 128,128,0),
-                        CheckedColors = new Colors(Color.White, Color.Yellow),
+                        CheckedColors = new Colors(Color.White, Color.Yellow, Color.White),
                         HoverText = "Yellow state.\nThis state will be selected on yellow wire signal."
                     },
                 }
@@ -588,7 +588,7 @@ namespace Particulator
         public static void UpdateStatePos(UIElement e)
         {
             Vec2f pos = Container.Pos.Value + Root.Bounds.Size * Container.Pos.Percent;
-            Vec2f size = Container.Bounds.Size;
+            Vec2f size = Container.Bounds.Size * Container.Scale;
 
             pos.X -= StateSwitch.Bounds.Width + 5;
             pos.Y += (size.Y / 2) - (StateSwitch.Bounds.Height / 2);

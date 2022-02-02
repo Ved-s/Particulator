@@ -98,8 +98,9 @@ namespace UIKit
         public static Vec2f operator -(Vec2f a) => new Vec2f(-a.X, -a.Y);
 
         public static implicit operator Vector2(Vec2f v) => new Vector2(v.X, v.Y);
-        public static implicit operator Vec2f(Point v) => new Vec2f(v.X, v.Y);
+        public static explicit operator Point(Vec2f v) => new Point((int)v.X, (int)v.Y);
 
+        public static implicit operator Vec2f(Point v) => new Vec2f(v.X, v.Y);
         public static explicit operator Vec2f(Vector2 v) => new Vec2f(v.X, v.Y);
 
         public Vec2f ApplyTransform(Transform transform)
@@ -227,6 +228,12 @@ namespace UIKit
                 $"{Offset.X.ToString("0.00", NumberFormatInfo.InvariantInfo)}," +
                 $" {Offset.Y.ToString("0.00", NumberFormatInfo.InvariantInfo)}" +
                 $") {Angle} x{Scale.ToString("0.00", NumberFormatInfo.InvariantInfo)}";
+        }
+
+        public void IntClamp() 
+        {
+            Offset.X = (float)Math.Floor(Offset.X);
+            Offset.Y = (float)Math.Floor(Offset.Y);
         }
     }
     public struct TransformedGraphics
